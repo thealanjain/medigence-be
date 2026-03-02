@@ -122,10 +122,42 @@ const submitOnboarding = async (patientId) => {
     throw error;
   }
 
+  // Get preferred doctor, prioritize DB record then draft
+  let preferredDoctorId = insurance?.preferred_doctor_id;
+
+  if (!preferredDoctorId) {
+    const step3Draft = await onboardingRepo.getDraftByStep(patientId, 3);
+    if (step3Draft?.draft_json) {
+      const data = typeof step3Draft.draft_json === 'string' ? JSON.parse(step3Draft.draft_json) : step3Draft.draft_json;
+      preferredDoctorId = data?.preferred_doctor_id;
+    }
+  }
+
+  let assignment = null;
+  let chat = null;
+
+  if (preferredDoctorId) {
+    // Get doctor's user_id for chat
+    const doctorUserId = await onboardingRepo.getDoctorUserIdById(preferredDoctorId);
+    if (doctorUserId) {
+      console.log(`[Submit] Found doctor ${preferredDoctorId} (user_id: ${doctorUserId}), creating assignment and chat`);
+      // Assign patient to doctor
+      assignment = await onboardingRepo.assignDoctorToPatient(patientId, preferredDoctorId);
+      // Create chat room
+      chat = await onboardingRepo.createChat(patientId, doctorUserId);
+    } else {
+      console.warn(`[Submit] Doctor record ${preferredDoctorId} has no associated user_id`);
+    }
+  } else {
+    console.warn(`[Submit] No preferred doctor found in insurance record or draft for patient ${patientId}`);
+  }
+
   // Record that onboarding is completed via Step 4 ghost draft
   await saveDraft(patientId, 4, { completed: true, timestamp: new Date().toISOString() });
 
   return {
+    assignment,
+    chat,
     summary: {
       profile,
       medical,

@@ -4,7 +4,7 @@ const getChatsByUserId = async (userId, role) => {
   let sql;
   if (role === 'PATIENT') {
     sql = `
-      SELECT c.id, c.created_at,
+      SELECT c.id, c.created_at, c.doctor_id,
              d.name AS doctor_name, d.specialization,
              du.email AS doctor_email,
              u.email AS patient_email,
@@ -19,7 +19,7 @@ const getChatsByUserId = async (userId, role) => {
       ORDER BY last_message_at DESC NULLS LAST`;
   } else {
     sql = `
-      SELECT c.id, c.created_at,
+      SELECT c.id, c.created_at, c.doctor_id, c.patient_id,
              pp.full_name AS patient_name,
              pu.email AS patient_email,
              u.email AS doctor_email,

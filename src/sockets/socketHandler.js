@@ -129,8 +129,8 @@ const initSocket = (io) => {
 
         const room = `chat:${chatId}`;
 
-        // Emit to all room members
-        io.to(room).emit('receive_message', {
+        // Emit to all room members EXCEPT sender
+        socket.to(room).emit('receive_message', {
           ...message,
           sender_role: userRole,
         });
