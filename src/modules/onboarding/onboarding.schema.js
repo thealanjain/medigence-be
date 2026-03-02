@@ -51,9 +51,6 @@ const step2Schema = z.object({
 });
 
 const step3Schema = z.object({
-  preferred_doctor_id: z
-    .string({ required_error: 'Please select a preferred doctor' })
-    .uuid('Invalid doctor ID'),
   preferred_time_slot: z
     .enum(['Morning', 'Afternoon', 'Evening', 'Night'], {
       errorMap: () => ({ message: 'Invalid time slot' }),
@@ -62,6 +59,7 @@ const step3Schema = z.object({
   referral_source: z.string().trim().max(255).optional(),
   insurance_provider: z.string().trim().max(255).optional(),
   policy_number: z.string().trim().max(100).optional(),
+  additional_notes: z.string().trim().max(2000).optional(),
 });
 
 module.exports = { step1Schema, step2Schema, step3Schema };

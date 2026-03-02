@@ -1,5 +1,4 @@
 const onboardingRepo = require('./onboarding.repository');
-const doctorsRepo = require('../doctors/doctors.repository');
 
 // ─── DRAFT HELPERS ────────────────────────────────────────────────────────────
 
@@ -8,7 +7,12 @@ const saveDraft = async (patientId, stepNumber, data) => {
 };
 
 const getDraft = async (patientId) => {
-  const drafts = await onboardingRepo.getDraftsByPatient(patientId);
+  const draftsRaw = await onboardingRepo.getDraftsByPatient(patientId);
+  const drafts = draftsRaw.map((d) => ({
+    step_number: d.step_number,
+    data: d.draft_json,
+    updated_at: d.updated_at,
+  }));
 
   // Also check which steps are already persisted
   const [profile, medical, insurance] = await Promise.all([
@@ -22,14 +26,24 @@ const getDraft = async (patientId) => {
   if (medical) completedSteps.push(2);
   if (insurance) completedSteps.push(3);
 
+  // Check if step 4 (submission) is recorded as a ghost draft
+  const hasFinishedReview = drafts.some((d) => d.step_number === 4);
+  if (hasFinishedReview) completedSteps.push(4);
+
   // Suggest next step
-  const nextStep = completedSteps.length < 3 ? (completedSteps.length + 1) : null;
+  let nextStep = null;
+  if (!profile) nextStep = 1;
+  else if (!medical) nextStep = 2;
+  else if (!insurance) nextStep = 3;
+  else if (!hasFinishedReview) nextStep = 4;
+
+  const isComplete = completedSteps.includes(4);
 
   return {
     drafts,
     completed_steps: completedSteps,
     next_step: nextStep,
-    is_complete: completedSteps.length === 3,
+    is_complete: isComplete,
   };
 };
 
@@ -81,15 +95,6 @@ const saveStep3 = async (patientId, data) => {
     throw error;
   }
 
-  // Validate preferred doctor exists
-  const doctor = await doctorsRepo.getDoctorById(data.preferred_doctor_id);
-  if (!doctor) {
-    const error = new Error('Selected doctor does not exist');
-    error.statusCode = 404;
-    error.isOperational = true;
-    throw error;
-  }
-
   const insuranceInfo = await onboardingRepo.upsertInsuranceInfo(patientId, data);
   await saveDraft(patientId, 3, data);
   return insuranceInfo;
@@ -98,7 +103,7 @@ const saveStep3 = async (patientId, data) => {
 // ─── FINAL SUBMIT ─────────────────────────────────────────────────────────────
 
 const submitOnboarding = async (patientId) => {
-  // Verify all 3 steps are complete
+  // Verify all 3 steps are complete (actual data is in DB)
   const [profile, medical, insurance] = await Promise.all([
     onboardingRepo.getPatientProfile(patientId),
     onboardingRepo.getMedicalInfo(patientId),
@@ -117,33 +122,10 @@ const submitOnboarding = async (patientId) => {
     throw error;
   }
 
-  // Get the preferred doctor
-  const preferredDoctorId = insurance.preferred_doctor_id;
-  if (!preferredDoctorId) {
-    const error = new Error('No preferred doctor selected in Step 3');
-    error.statusCode = 400;
-    error.isOperational = true;
-    throw error;
-  }
-
-  // Get doctor's user_id for chat
-  const doctorUserId = await onboardingRepo.getDoctorUserIdById(preferredDoctorId);
-  if (!doctorUserId) {
-    const error = new Error('Selected doctor account not found');
-    error.statusCode = 404;
-    error.isOperational = true;
-    throw error;
-  }
-
-  // Assign patient to doctor
-  const assignment = await onboardingRepo.assignDoctorToPatient(patientId, preferredDoctorId);
-
-  // Create chat room between patient and doctor
-  const chat = await onboardingRepo.createChat(patientId, doctorUserId);
+  // Record that onboarding is completed via Step 4 ghost draft
+  await saveDraft(patientId, 4, { completed: true, timestamp: new Date().toISOString() });
 
   return {
-    assignment,
-    chat,
     summary: {
       profile,
       medical,

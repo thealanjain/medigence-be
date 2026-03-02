@@ -112,25 +112,25 @@ const upsertMedicalInfo = async (userId, data) => {
 
 const upsertInsuranceInfo = async (userId, data) => {
   const {
-    preferred_doctor_id, preferred_time_slot, referral_source,
-    insurance_provider, policy_number
+    preferred_time_slot, referral_source,
+    insurance_provider, policy_number, additional_notes
   } = data;
   const result = await query(
     `INSERT INTO insurance_information
-       (user_id, preferred_doctor_id, preferred_time_slot, referral_source, insurance_provider, policy_number)
+       (user_id, preferred_time_slot, referral_source, insurance_provider, policy_number, additional_notes)
      VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (user_id)
      DO UPDATE SET
-       preferred_doctor_id = $2, preferred_time_slot = $3, referral_source = $4,
-       insurance_provider = $5, policy_number = $6, updated_at = NOW()
+       preferred_time_slot = $2, referral_source = $3,
+       insurance_provider = $4, policy_number = $5, additional_notes = $6, updated_at = NOW()
      RETURNING *`,
     [
       userId,
-      preferred_doctor_id,
-      preferred_time_slot || null,
-      referral_source || null,
-      insurance_provider || null,
-      policy_number || null,
+      preferred_time_slot ?? null,
+      referral_source ?? null,
+      insurance_provider ?? null,
+      policy_number ?? null,
+      additional_notes ?? null,
     ]
   );
   return result.rows[0];

@@ -59,6 +59,14 @@ const initSocket = (io) => {
     // Notify others that user is online
     socket.broadcast.emit('user_online', { userId });
 
+    // ─── get_online_users ────────────────────────────────────────────────────
+    socket.on('get_online_users', (callback) => {
+      if (typeof callback === 'function') {
+        const onlineIds = Array.from(onlineUsers.keys());
+        callback({ success: true, onlineUsers: onlineIds });
+      }
+    });
+
     // ─── authenticate (re-auth if needed) ────────────────────────────────────
     socket.on('authenticate', (callback) => {
       if (typeof callback === 'function') {

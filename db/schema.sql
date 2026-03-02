@@ -123,7 +123,7 @@ CREATE INDEX idx_insurance_info_user_id ON insurance_information(user_id);
 CREATE TABLE onboarding_drafts (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   patient_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  step_number  INTEGER NOT NULL CHECK (step_number BETWEEN 1 AND 3),
+  step_number  INTEGER NOT NULL CHECK (step_number BETWEEN 1 AND 4),
   draft_json   JSONB NOT NULL DEFAULT '{}',
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(patient_id, step_number)

@@ -2,8 +2,7 @@ const { query } = require('../../database/db');
 
 const getAllDoctors = async () => {
   const result = await query(
-    `SELECT d.id, d.name, d.specialization, d.bio, d.available_slots, d.created_at,
-            u.email
+    `SELECT d.id, d.name, d.specialization, u.id as user_id, d.bio, d.available_slots, d.created_at, u.email
      FROM doctors d
      JOIN users u ON u.id = d.user_id
      ORDER BY d.name ASC`
